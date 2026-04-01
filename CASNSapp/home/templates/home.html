@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <base target="_self">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CASNS - Community Alert System</title>
+    <meta name="description" content="Community Alert and Service Notification System for Taung community - Water, Electricity, and Crime alerts">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: '#1e40af',
+                            dark: '#1e3a8a',
+                            light: '#3b82f6'
+                        },
+                        secondary: {
+                            DEFAULT: '#059669',
+                            dark: '#047857',
+                            light: '#10b981'
+                        },
+                        alert: {
+                            water: '#0ea5e9',
+                            electricity: '#f59e0b',
+                            crime: '#ef4444'
+                        },
+                        background: '#f8fafc'
+                    },
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .alert-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .alert-card:hover {
+            transform: translateY(-2px);
+        }
+        .category-badge {
+            border-left-width: 4px;
+        }
+        .water-badge {
+            border-left-color: #0ea5e9;
+        }
+        .electricity-badge {
+            border-left-color: #f59e0b;
+        }
+        .crime-badge {
+            border-left-color: #ef4444;
+        }
+        .tab-active {
+            border-bottom-width: 3px;
+            font-weight: 600;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .modal-content {
+            animation: modalFadeIn 0.3s;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            animation: toastSlideIn 0.3s ease-out;
+        }
+        @keyframes toastSlideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-background font-sans">
+    <!-- Header/Navigation -->
+    <header class="sticky top-0 z-40 bg-white shadow-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center space-x-3 mb-4 md:mb-0">
+                    <div class="bg-primary text-white p-2 rounded-lg">
+                        <i class="fas fa-bell text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-800">CASNS</h1>
+                        <p class="text-xs text-gray-600">Community Alert & Service Notification System</p>
+                    </div>
+                </div>
+                
+                <nav class="w-full md:w-auto">
+                    <ul id="nav-list" class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-6 text-gray-700"></ul>
+                </nav>
+                
+                <div class="flex items-center space-x-4 mt-4 md:mt-0">
+                    <div id="user-info" class="hidden">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 bg-primary-light rounded-full flex items-center justify-center text-white font-medium">
+                                <span id="user-initial">U</span>
+                            </div>
+                            <span id="username" class="font-medium text-gray-800"></span>
+                        </div>
+                    </div>
+                    <div id="auth-buttons" class="flex space-x-3">
+                        <button id="login-btn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors">
+                            <i class="fas fa-sign-in-alt mr-2"></i>Login
+                        </button>
+                        <button id="register-btn" class="px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition-colors">
+                            <i class="fas fa-user-plus mr-2"></i>Register
+                        </button>
+                    </div>
+                    <button id="logout-btn" class="hidden px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Hero Section -->
+        <section id="hero" class="mb-12">
+            <div class="bg-gradient-to-r from-primary to-primary-dark rounded-2xl p-8 text-white">
+                <div class="max-w-3xl">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4">Stay Informed, Stay Safe</h2>
+                    <p class="text-lg mb-6 opacity-90">The Community Alert and Service Notification System (CASNS) helps Taung residents access verified updates on water shortages, electricity outages, and crime alerts in a structured, reliable format.</p>
+                    <div class="flex flex-wrap gap-4">
+                        <button id="view-alerts-btn" class="px-6 py-3 bg-white text-primary font-semibold rounded-lg hover:bg-gray-100 transition-colors">
+                            <i class="fas fa-bell mr-2"></i>View Alerts
+                        </button>
+                        <button id="report-issue-btn" class="px-6 py-3 bg-secondary text-white font-semibold rounded-lg hover:bg-secondary-dark transition-colors">
+                            <i class="fas fa-exclamation-circle mr-2"></i>Report Issue
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard/Alerts Section -->
+        <section id="dashboard" class="mb-12">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Recent Community Alerts</h2>
+                <div class="flex space-x-2">
+                    <button id="filter-all" class="px-4 py-2 bg-primary text-white rounded-lg tab-active">All</button>
+                    <button id="filter-water" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">Water</button>
+                    <button id="filter-electricity" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">Electricity</button>
+                    <button id="filter-crime" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">Crime</button>
+                </div>
+            </div>
+            
+            <div id="alerts-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            
+            <div class="text-center mt-8">
+                <button id="load-more-btn" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                    <i class="fas fa-redo mr-2"></i>Load More Alerts
+                </button>
+            </div>
+        </section>
+
+        <!-- Categories Section -->
+        <section id="categories" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Alert Categories</h2>
+            <div id="categories-container" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- Statistics Section -->
+        <section id="statistics" class="mb-12 bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Community Statistics</h2>
+            <div id="stats-container" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+        </section>
+
+        <!-- Report Issue Section -->
+        <section id="report-section" class="mb-12">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Report a Community Issue</h2>
+                <p class="text-gray-600 mb-6">Help keep your community informed by reporting water shortages, electricity outages, or security concerns.</p>
+                
+                <form id="report-form" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="report-title" class="block text-sm font-medium text-gray-700 mb-1">Issue Title *</label>
+                            <input type="text" id="report-title" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="e.g., Water outage in Zone 5" required>
+                        </div>
+                        <div>
+                            <label for="report-category" class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                            <select id="report-category" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                                <option value="">Select a category</option>
+                                <option value="water">Water Shortage</option>
+                                <option value="electricity">Electricity Outage</option>
+                                <option value="crime">Crime/Security Alert</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="report-location" class="block text-sm font-medium text-gray-700 mb-1">Location *</label>
+                        <input type="text" id="report-location" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="e.g., Taung Zone 5, near Main Street" required>
+                    </div>
+                    
+                    <div>
+                        <label for="report-description" class="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                        <textarea id="report-description" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Please provide details about the issue..." required></textarea>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" id="report-urgent" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                        <label for="report-urgent" class="ml-2 text-sm text-gray-700">Mark as urgent (requires immediate attention)</label>
+                    </div>
+                    
+                    <div class="pt-4">
+                        <button type="submit" class="px-6 py-3 bg-secondary text-white font-semibold rounded-lg hover:bg-secondary-dark transition-colors">
+                            <i class="fas fa-paper-plane mr-2"></i>Submit Report
+                        </button>
+                        <p class="text-xs text-gray-500 mt-2">Reports will be reviewed by administrators before being published as verified alerts.</p>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="bg-primary p-2 rounded-lg">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">CASNS</h3>
+                    </div>
+                    <p class="text-gray-300 text-sm">Community Alert and Service Notification System for Taung community.</p>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Quick Links</h4>
+                    <ul id="footer-links" class="space-y-2"></ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Alert Categories</h4>
+                    <ul id="category-links" class="space-y-2"></ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Contact</h4>
+                    <ul class="space-y-2 text-gray-300">
+                        <li class="flex items-center">
+                            <i class="fas fa-map-marker-alt mr-3 text-primary-light"></i>
+                            <span>Taung Community Center</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-phone mr-3 text-primary-light"></i>
+                            <span>+27 123 456 789</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fas fa-envelope mr-3 text-primary-light"></i>
+                            <span>info@casns-taung.org</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400 text-sm">
+                <p>&copy; 2023 Community Alert and Service Notification System (CASNS). All rights reserved.</p>
+                <p class="mt-1">Designed to improve community communication in Taung.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content max-w-md mx-auto mt-20 bg-white rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800">Login to CASNS</h3>
+                <button id="close-login-modal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="login-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                    <input type="email" id="login-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="your@email.com" required>
+                </div>
+                
+                <div>
+                    <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                    <input type="password" id="login-password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Enter your password" required>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="remember-me" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                        <label for="remember-me" class="ml-2 text-sm text-gray-700">Remember me</label>
+                    </div>
+                    <a href="#" class="text-sm text-primary hover:text-primary-dark">Forgot password?</a>
+                </div>
+                
+                <div class="pt-4">
+                    <button type="submit" class="w-full px-6 py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Login
+                    </button>
+                </div>
+                
+                <p class="text-center text-gray-600 text-sm mt-4">
+                    Don't have an account? 
+                    <button id="switch-to-register" class="text-primary font-medium hover:text-primary-dark">Register here</button>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div id="register-modal" class="modal">
+        <div class="modal-content max-w-md mx-auto mt-20 bg-white rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800">Register for CASNS</h3>
+                <button id="close-register-modal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="register-form" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="register-firstname" class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                        <input type="text" id="register-firstname" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="John" required>
+                    </div>
+                    <div>
+                        <label for="register-lastname" class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                        <input type="text" id="register-lastname" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Doe" required>
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="register-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                    <input type="email" id="register-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="your@email.com" required>
+                </div>
+                
+                <div>
+                    <label for="register-phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                    <input type="tel" id="register-phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="+27 123 456 789">
+                </div>
+                
+                <div>
+                    <label for="register-location" class="block text-sm font-medium text-gray-700 mb-1">Residential Area *</label>
+                    <select id="register-location" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                        <option value="">Select your area</option>
+                        <option value="zone1">Taung Zone 1</option>
+                        <option value="zone2">Taung Zone 2</option>
+                        <option value="zone3">Taung Zone 3</option>
+                        <option value="zone4">Taung Zone 4</option>
+                        <option value="zone5">Taung Zone 5</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="register-password" class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                        <input type="password" id="register-password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Create a password" required>
+                    </div>
+                    <div>
+                        <label for="register-confirm" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
+                        <input type="password" id="register-confirm" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Confirm your password" required>
+                    </div>
+                </div>
+                
+                <div class="pt-4">
+                    <button type="submit" class="w-full px-6 py-3 bg-secondary text-white font-semibold rounded-lg hover:bg-secondary-dark transition-colors">
+                        <i class="fas fa-user-plus mr-2"></i>Create Account
+                    </button>
+                </div>
+                
+                <p class="text-center text-gray-600 text-sm mt-4">
+                    Already have an account? 
+                    <button id="switch-to-login" class="text-primary font-medium hover:text-primary-dark">Login here</button>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Panel (Hidden by default) -->
+    <div id="admin-panel" class="hidden fixed right-0 top-1/2 transform -translate-y-1/2 bg-white shadow-xl rounded-l-lg p-4 z-30">
+        <button id="toggle-admin" class="absolute -left-10 bg-primary text-white p-2 rounded-l-lg">
+            <i class="fas fa-cog"></i>
+        </button>
+        <h4 class="font-bold text-gray-800 mb-3">Admin Panel</h4>
+        <div class="space-y-2">
+            <button id="admin-new-alert" class="w-full px-3 py-2 bg-primary text-white text-sm rounded hover:bg-primary-dark">
+                <i class="fas fa-plus mr-1"></i>New Alert
+            </button>
+            <button id="admin-view-reports" class="w-full px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300">
+                <i class="fas fa-clipboard-list mr-1"></i>View Reports
+            </button>
+            <button id="admin-verify-alerts" class="w-full px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300">
+                <i class="fas fa-check-circle mr-1"></i>Verify Alerts
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">
+        <div class="bg-gray-800 text-white rounded-lg shadow-lg p-4 max-w-sm">
+            <div class="flex items-start">
+                <div id="toast-icon" class="mr-3 mt-1"></div>
+                <div class="flex-1">
+                    <h5 id="toast-title" class="font-semibold"></h5>
+                    <p id="toast-message" class="text-sm text-gray-300 mt-1"></p>
+                </div>
+                <button id="close-toast" class="ml-4 text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== DATA LAYER ==========
+        // Navigation items
+        const navigationItems = [
+            { "label": "Home", "href": "#hero", "icon": "fas fa-home" },
+            { "label": "Alerts", "href": "#dashboard", "icon": "fas fa-bell" },
+            { "label": "Report Issue", "href": "#report-section", "icon": "fas fa-exclamation-circle" },
+            { "label": "Categories", "href": "#categories", "icon": "fas fa-list" },
+            { "label": "Statistics", "href": "#statistics", "icon": "fas fa-chart-bar" }
+        ];
+
+        // Footer links
+        const footerLinks = [
+            { "label": "About CASNS", "href": "#" },
+            { "label": "How It Works", "href": "#" },
+            { "label": "Privacy Policy", "href": "#" },
+            { "label": "Terms of Service", "href": "#" },
+            { "label": "FAQ", "href": "#" },
+            { "label": "Contact Support", "href": "#" }
+        ];
+
+        // Category links
+        const categoryLinks = [
+            { "label": "Water Shortages", "href": "#", "category": "water" },
+            { "label": "Electricity Outages", "href": "#", "category": "electricity" },
+            { "label": "Crime Alerts", "href": "#", "category": "crime" },
+            { "label": "Service Updates", "href": "#", "category": "general" }
+        ];
+
+        // Alert categories data
+        const categoriesData = [
+            { 
+                "id": "water", 
+                "title": "Water Shortages", 
+                "description": "Updates on water supply interruptions, maintenance schedules, and restoration times.", 
+                "icon": "fas fa-tint", 
+                "color": "alert-water",
+                "count": 12
+            },
+            { 
+                "id": "electricity", 
+                "title": "Electricity Outages", 
+                "description": "Information about power outages, load shedding schedules, and restoration progress.", 
+                "icon": "fas fa-bolt", 
+                "color": "alert-electricity",
+                "count": 8
+            },
+            { 
+                "id": "crime", 
+                "title": "Crime Alerts", 
+                "description": "Security updates, crime prevention tips, and community safety announcements.", 
+                "icon": "fas fa-shield-alt", 
+                "color": "alert-crime",
+                "count": 5
+            }
+        ];
+
+        // Statistics data
+        const statisticsData = [
+            { "label": "Active Alerts", "value": "25", "icon": "fas fa-bell", "color": "text-primary" },
+            { "label": "Issues Reported", "value": "142", "icon": "fas fa-flag", "color": "text-secondary" },
+            { "label": "Verified Updates", "value": "89", "icon": "fas fa-check-circle", "color": "text-green-500" },
+            { "label": "Community Members", "value": "1,240", "icon": "fas fa-users", "color": "text-purple-500" }
+        ];
+
+        // Alerts data
+        const alertsData = [
+            { 
+                "id": 1, 
+                "title": "Water Supply Interruption", 
+                "category": "water", 
+                "location": "Taung Zone 5, Main Street", 
+                "description": "Scheduled maintenance on water pipes will cause interruption from 8 AM to 4 PM tomorrow.", 
+                "time": "2 hours ago", 
+                "urgent": false,
+                "verified": true,
+                "image": "https://picsum.photos/400/300?random=101"
+            },
+            { 
+                "id": 2, 
+                "title": "Power Outage Reported", 
+                "category": "electricity", 
+                "location": "Taung Zone 3, Industrial Area", 
+                "description": "Unexpected power outage due to transformer fault. Crew dispatched for repairs.", 
+                "time": "5 hours ago", 
+                "urgent": true,
+                "verified": true,
+                "image": "https://picsum.photos/400/300?random=102"
+            },
+            { 
+                "id": 3, 
+                "title": "Security Alert: Suspicious Activity", 
+                "category": "crime", 
+                "location": "Taung Zone 2, Near Market", 
+                "description": "Report of suspicious individuals loitering in the area. Increased police patrols deployed.", 
+                "time": "1 day ago", 
+                "urgent": true,
+                "verified": true,
+                "image": "https://picsum.photos/400/300?random=103"
+            },
+            { 
+                "id": 4, 
+                "title": "Water Restoration Complete", 
+                "category": "water", 
+                "location": "Taung Zone 4", 
+                "description": "Water supply has been fully restored after yesterday's maintenance work.", 
+                "time": "1 day ago", 
+                "urgent": false,
+                "verified": true,
+                "image": "https://picsum.photos/400/300?random=104"
+            },
+            { 
+                "id": 5, 
+                "title": "Load Shedding Schedule Update", 
+                "category": "electricity", 
+                "location": "All Taung Zones", 
+                "description": "Revised load shedding schedule for the week. Stage 2 implemented from 2 PM to 6 PM daily.", 
+                "time": "2 days ago", 
+                "urgent": false,
+                "verified": true,
+                "image": "https://picsum.photos/400/300?random=105"
+            },
+            { 
+                "id": 6, 
+                "title": "Community Safety Meeting", 
+                "category": "crime", 
+                "location": "Taung Community Center", 
+                "description": "Monthly community safety meeting scheduled for Friday at 6 PM. All residents welcome.", 
+                "time": "3 days ago", 
+                "urgent": false,
+                "verified": true,
+                "image": "https://picsum.photos/400/300?random=106"
+            },
+            { 
+                "id": 7, 
+                "title": "Low Water Pressure Reported", 
+                "category": "water", 
+                "location": "Taung Zone 1, Residential Area", 
+                "description": "Residents reporting low water pressure. Investigation underway to identify the cause.", 
+                "time": "4 days ago", 
+                "urgent": false,
+                "verified": false,
+                "image": "https://picsum.photos/400/300?random=107"
+            },
+            { 
+                "id": 8, 
+                "title": "Street Light Repairs", 
+                "category": "electricity", 
+                "location": "Taung Zone 5, Along Highway", 
+                "description": "Street light repairs scheduled for Wednesday night. Temporary traffic diversions in place.", 
+                "time": "5 days ago", 
+                "urgent": false,
+                "verified": true,
+                "image": "https://picsum.photos/400/300?random=108"
+            }
+        ];
+
+        // User data (simulated)
+        let currentUser = null;
+        const sampleUsers = [
+            { "id": 1, "firstName": "John", "lastName": "Doe", "email": "john@example.com", "location": "Taung Zone 3", "role": "user" },
+            { "id": 2, "firstName": "Admin", "lastName": "User", "email": "admin@casns.org", "location": "Taung Community Center", "role": "admin" }
+        ];
+
+        // ========== REUSABLE RENDER FUNCTIONS ==========
+        // Render navigation items
+        function renderNavItems(items) {
+            return items.map(item => 
+                `<li><a href="${item.href}" class="flex items-center py-2 px-3 rounded-lg hover:bg-gray-100 transition-colors">
+                    <i class="${item.icon} mr-2 text-primary"></i>
+                    <span>${item.label}</span>
+                </a></li>`
+            ).join("");
+        }
+
+        // Render footer links
+        function renderFooterLinks(items) {
+            return items.map(item => 
+                `<li><a href="${item.href}" class="text-gray-300 hover:text-white transition-colors">${item.label}</a></li>`
+            ).join("");
+        }
+
+        // Render category links
+        function renderCategoryLinks(items) {
+            return items.map(item => 
+                `<li><a href="${item.href}" class="text-gray-300 hover:text-white transition-colors flex items-center">
+                    <i class="fas fa-chevron-right text-xs mr-2 text-primary-light"></i>
+                    ${item.label}
+                </a></li>`
+            ).join("");
+        }
+
+        // Render alert cards
+        function renderAlertCards(alerts) {
+            return alerts.map(alert => {
+                const categoryClass = `${alert.category}-badge`;
+                const categoryColors = {
+                    "water": "bg-blue-100 text-blue-800",
+                    "electricity": "bg-yellow-100 text-yellow-800",
+                    "crime": "bg-red-100 text-red-800"
+                };
+                
+                return `
+                <div class="alert-card bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+                    <div class="h-40 overflow-hidden">
+                        <img src="${alert.image}" alt="${alert.title}" class="w-full h-full object-cover" loading="lazy">
+                    </div>
+                    <div class="p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="px-3 py-1 rounded-full text-xs font-medium ${categoryColors[alert.category]}">
+                                ${alert.category.charAt(0).toUpperCase() + alert.category.slice(1)}
+                            </span>
+                            ${alert.urgent ? '<span class="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded">URGENT</span>' : ''}
+                        </div>
+                        <h3 class="font-bold text-gray-800 text-lg mb-2">${alert.title}</h3>
+                        <div class="flex items-center text-gray-600 text-sm mb-2">
+                            <i class="fas fa-map-marker-alt mr-2 text-primary"></i>
+                            <span>${alert.location}</span>
+                        </div>
+                        <p class="text-gray-600 text-sm mb-4">${alert.description}</p>
+                        <div class="flex justify-between items-center pt-3 border-t border-gray-100">
+                            <div class="flex items-center text-gray-500 text-xs">
+                                <i class="far fa-clock mr-1"></i>
+                                <span>${alert.time}</span>
+                            </div>
+                            <div class="flex items-center">
+                                ${alert.verified ? '<span class="text-green-500 text-xs mr-2"><i class="fas fa-check-circle"></i> Verified</span>' : ''}
+                                <button class="text-primary hover:text-primary-dark text-sm font-medium" onclick="viewAlertDetails(${alert.id})">
+                                    View Details <i class="fas fa-arrow-right ml-1"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join("");
+        }
+
+        // Render categories
+        function renderCategories(categories) {
+            return categories.map(cat => 
+                `<div class="bg-white rounded-xl shadow-md p-6 border-l-4 ${cat.color}">
+                    <div class="flex items-center mb-4">
+                        <div class="p-3 rounded-lg ${cat.color.replace('alert-', 'bg-')} bg-opacity-10 mr-4">
+                            <i class="${cat.icon} text-xl ${cat.color.replace('alert-', 'text-')}"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800">${cat.title}</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">${cat.description}</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500">${cat.count} active alerts</span>
+                        <button class="text-primary hover:text-primary-dark font-medium" onclick="filterAlerts('${cat.id}')">
+                            View Alerts <i class="fas fa-arrow-right ml-1"></i>
+                        </button>
+                    </div>
+                </div>`
+            ).join("");
+        }
+
+        // Render statistics
+        function renderStatistics(stats) {
+            return stats.map(stat => 
+                `<div class="bg-gray-50 rounded-lg p-4 text-center">
+                    <div class="${stat.color} text-3xl mb-2">
+                        <i class="${stat.icon}"></i>
+                    </div>
+                    <div class="text-2xl font-bold text-gray-800">${stat.value}</div>
+                    <div class="text-gray-600 text-sm">${stat.label}</div>
+                </div>`
+            ).join("");
+        }
+
+        // ========== EVENT HANDLERS ==========
+        // Filter alerts by category
+        function filterAlerts(category) {
+            const filteredAlerts = category === 'all' 
+                ? alertsData 
+                : alertsData.filter(alert => alert.category === category);
+            
+            document.getElementById('alerts-container').innerHTML = renderAlertCards(filteredAlerts);
+            
+            // Update active filter button
+            document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+                btn.classList.remove('tab-active', 'bg-primary', 'text-white');
+                btn.classList.add('bg-gray-200', 'text-gray-700');
+            });
+            
+            const activeBtn = document.getElementById(`filter-${category}`);
+            if (activeBtn) {
+                activeBtn.classList.add('tab-active', 'bg-primary', 'text-white');
+                activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
+            }
+            
+            showToast('Filter Applied', `Showing ${category === 'all' ? 'all' : category} alerts`, 'info');
+        }
+
+        // View alert details
+        function viewAlertDetails(alertId) {
+            const alert = alertsData.find(a => a.id === alertId);
+            if (alert) {
+                showToast(alert.title, `${alert.description} (${alert.location})`, 'info');
+            }
+        }
+
+        // Show toast notification
+        function showToast(title, message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastTitle = document.getElementById('toast-title');
+            const toastMessage = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+            
+            const icons = {
+                'success': '<i class="fas fa-check-circle text-green-400 text-xl"></i>',
+                'error': '<i class="fas fa-exclamation-circle text-red-400 text-xl"></i>',
+                'info': '<i class="fas fa-info-circle text-blue-400 text-xl"></i>',
+                'warning': '<i class="fas fa-exclamation-triangle text-yellow-400 text-xl"></i>'
+            };
+            
+            toastTitle.textContent = title;
+            toastMessage.textContent = message;
+            toastIcon.innerHTML = icons[type] || icons.info;
+            
+            toast.classList.remove('hidden');
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Handle user login
+        function handleLogin(email, password) {
+            // Simulate authentication
+            const user = sampleUsers.find(u => u.email === email);
+            
+            if (user) {
+                currentUser = user;
+                updateUIForUser();
+                showToast('Login Successful', `Welcome back, ${user.firstName}!`, 'success');
+                closeModal('login-modal');
+                return true;
+            } else {
+                showToast('Login Failed', 'Invalid email or password', 'error');
+                return false;
+            }
+        }
+
+        // Handle user registration
+        function handleRegistration(formData) {
+            // Simulate registration
+            const newUser = {
+                id: sampleUsers.length + 1,
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                location: formData.location,
+                role: 'user'
+            };
+            
+            sampleUsers.push(newUser);
+            currentUser = newUser;
+            updateUIForUser();
+            showToast('Registration Successful', `Welcome to CASNS, ${newUser.firstName}!`, 'success');
+            closeModal('register-modal');
+            return true;
+        }
+
+        // Handle issue report submission
+        function handleReportSubmission(formData) {
+            // Simulate report submission
+            const newReport = {
+                id: alertsData.length + 1,
+                title: formData.title,
+                category: formData.category,
+                location: formData.location,
+                description: formData.description,
+                urgent: formData.urgent,
+                time: 'Just now',
+                verified: false,
+                image: `https://picsum.photos/400/300?random=${Math.floor(Math.random() * 100) + 200}`
+            };
+            
+            alertsData.unshift(newReport);
+            filterAlerts('all');
+            showToast('Report Submitted', 'Your issue has been reported and will be reviewed by administrators.', 'success');
+            return true;
+        }
+
+        // Update UI based on user authentication state
+        function updateUIForUser() {
+            const authButtons = document.getElementById('auth-buttons');
+            const userInfo = document.getElementById('user-info');
+            const logoutBtn = document.getElementById('logout-btn');
+            const adminPanel = document.getElementById('admin-panel');
+            const username = document.getElementById('username');
+            const userInitial = document.getElementById('user-initial');
+            
+            if (currentUser) {
+                authButtons.classList.add('hidden');
+                userInfo.classList.remove('hidden');
+                logoutBtn.classList.remove('hidden');
+                
+                username.textContent = `${currentUser.firstName} ${currentUser.lastName}`;
+                userInitial.textContent = currentUser.firstName.charAt(0);
+                
+                // Show admin panel if user is admin
+                if (currentUser.role === 'admin') {
+                    adminPanel.classList.remove('hidden');
+                } else {
+                    adminPanel.classList.add('hidden');
+                }
+            } else {
+                authButtons.classList.remove('hidden');
+                userInfo.classList.add('hidden');
+                logoutBtn.classList.add('hidden');
+                adminPanel.classList.add('hidden');
+            }
+        }
+
+        // Open modal
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+        }
+
+        // Close modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // ========== INITIALIZATION ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            // Render all content
+            document.getElementById('nav-list').innerHTML = renderNavItems(navigationItems);
+            document.getElementById('footer-links').innerHTML = renderFooterLinks(footerLinks);
+            document.getElementById('category-links').innerHTML = renderCategoryLinks(categoryLinks);
+            document.getElementById('alerts-container').innerHTML = renderAlertCards(alertsData);
+            document.getElementById('categories-container').innerHTML = renderCategories(categoriesData);
+            document.getElementById('stats-container').innerHTML = renderStatistics(statisticsData);
+            
+            // Set up event listeners for navigation
+            document.addEventListener('click', function(event) {
+                const link = event.target.closest('a[href^="#"]');
+                if (!link) return;
+                
+                const targetId = link.getAttribute('href');
+                if (targetId.startsWith('#')) {
+                    event.preventDefault();
+                    const targetElement = document.querySelector(targetId);
+                    if (targetElement) {
+                        window.scrollTo({
+                            top: targetElement.offsetTop - 80,
+                            behavior: 'smooth'
+                        });
+                    }
+                }
+            });
+            
+            // Filter buttons
+            document.getElementById('filter-all').addEventListener('click', () => filterAlerts('all'));
+            document.getElementById('filter-water').addEventListener('click', () => filterAlerts('water'));
+            document.getElementById('filter-electricity').addEventListener('click', () => filterAlerts('electricity'));
+            document.getElementById('filter-crime').addEventListener('click', () => filterAlerts('crime'));
+            
+            // Hero section buttons
+            document.getElementById('view-alerts-btn').addEventListener('click', () => {
+                document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' });
+            });
+            
+            document.getElementById('report-issue-btn').addEventListener('click', () => {
+                document.getElementById('report-section').scrollIntoView({ behavior: 'smooth' });
+            });
+            
+            // Load more button
+            document.getElementById('load-more-btn').addEventListener('click', () => {
+                showToast('Loading', 'Fetching more alerts...', 'info');
+                // In a real app, this would fetch more data from the server
+                setTimeout(() => {
+                    showToast('Loaded', 'Additional alerts loaded successfully', 'success');
+                }, 1000);
+            });
+            
+            // Auth buttons
+            document.getElementById('login-btn').addEventListener('click', () => openModal('login-modal'));
+            document.getElementById('register-btn').addEventListener('click', () => openModal('register-modal'));
+            document.getElementById('logout-btn').addEventListener('click', () => {
+                currentUser = null;
+                updateUIForUser();
+                showToast('Logged Out', 'You have been successfully logged out', 'info');
+            });
+            
+            // Modal close buttons
+            document.getElementById('close-login-modal').addEventListener('click', () => closeModal('login-modal'));
+            document.getElementById('close-register-modal').addEventListener('click', () => closeModal('register-modal'));
+            document.getElementById('close-toast').addEventListener('click', () => {
+                document.getElementById('toast').classList.add('hidden');
+            });
+            
+            // Switch between login and register modals
+            document.getElementById('switch-to-register').addEventListener('click', () => {
+                closeModal('login-modal');
+                openModal('register-modal');
+            });
+            
+            document.getElementById('switch-to-login').addEventListener('click', () => {
+                closeModal('register-modal');
+                openModal('login-modal');
+            });
+            
+            // Close modals when clicking outside
+            window.addEventListener('click', (event) => {
+                if (event.target.classList.contains('modal')) {
+                    event.target.style.display = 'none';
+                }
+            });
+            
+            // Login form submission
+            document.getElementById('login-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                handleLogin(email, password);
+            });
+            
+            // Register form submission
+            document.getElementById('register-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = {
+                    firstName: document.getElementById('register-firstname').value,
+                    lastName: document.getElementById('register-lastname').value,
+                    email: document.getElementById('register-email').value,
+                    phone: document.getElementById('register-phone').value,
+                    location: document.getElementById('register-location').value,
+                    password: document.getElementById('register-password').value
+                };
+                
+                if (formData.password !== document.getElementById('register-confirm').value) {
+                    showToast('Registration Error', 'Passwords do not match', 'error');
+                    return;
+                }
+                
+                handleRegistration(formData);
+            });
+            
+            // Report form submission
+            document.getElementById('report-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                if (!currentUser) {
+                    showToast('Authentication Required', 'Please login to report an issue', 'warning');
+                    openModal('login-modal');
+                    return;
+                }
+                
+                const formData = {
+                    title: document.getElementById('report-title').value,
+                    category: document.getElementById('report-category').value,
+                    location: document.getElementById('report-location').value,
+                    description: document.getElementById('report-description').value,
+                    urgent: document.getElementById('report-urgent').checked
+                };
+                
+                handleReportSubmission(formData);
+                
+                // Reset form
+                document.getElementById('report-form').reset();
+            });
+            
+            // Admin panel toggle
+            document.getElementById('toggle-admin').addEventListener('click', () => {
+                const adminPanel = document.getElementById('admin-panel');
+                adminPanel.classList.toggle('hidden');
+            });
+            
+            // Admin panel buttons
+            document.getElementById('admin-new-alert').addEventListener('click', () => {
+                showToast('Admin Feature', 'New alert creation panel would open here', 'info');
+            });
+            
+            document.getElementById('admin-view-reports').addEventListener('click', () => {
+                showToast('Admin Feature', 'Report management panel would open here', 'info');
+            });
+            
+            document.getElementById('admin-verify-alerts').addEventListener('click', () => {
+                showToast('Admin Feature', 'Alert verification panel would open here', 'info');
+            });
+            
+            // Initialize with no user logged in
+            updateUIForUser();
+            
+            // Show welcome message
+            setTimeout(() => {
+                showToast('Welcome to CASNS', 'Stay informed with verified community alerts', 'info');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
